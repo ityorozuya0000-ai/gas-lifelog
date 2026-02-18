@@ -84,7 +84,7 @@ function apiGenerateInsight(params) {
  * Gemini API 共通呼び出し関数
  */
 function callGemini(key, systemPrompt, userPrompt, isJson) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${key}`;
   const payload = {
     contents: [{ parts: [{ text: userPrompt }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] }

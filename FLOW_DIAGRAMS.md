@@ -91,6 +91,6 @@ sequenceDiagram
 
 -   **バックエンド**: Google Apps Script (GAS)
 -   **フロントエンド**: HTML5, Vanilla JavaScript, Tailwind CSS (CDN), Chart.js (CDN), FontAwesome (CDN)
--   **AI**: Google Gemini API (gemini-2.5-flash-preview)
+-   **AI**: Google Gemini API (gemini-2.5-flash-lite)
 -   **データベース**: Google Spreadsheet
 -   **デプロイ**: clasp (Command Line Apps Script Projects)
