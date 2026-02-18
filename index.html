@@ -1,0 +1,718 @@
+<!-- Chosen Palette: Morning Calm (Background: #FDFBF7, Primary: #2563EB, Accents: Soft Slate & Multi-color for categories) -->
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LifeLog - AI Powered Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+
+        :root {
+            --hour-height: 48px;
+            --header-height: 80px;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #fdfbf7;
+            color: #1e293b;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* タイムライン共通設定 */
+        .timeline-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .grid-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: #e2e8f0;
+            pointer-events: none;
+        }
+
+        .hour-label {
+            position: absolute;
+            left: -3.5rem;
+            width: 3rem;
+            text-align: right;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #94a3b8;
+            transform: translateY(-50%);
+        }
+
+        /* 活動ブロックのスタイル */
+        .activity-block {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            border-radius: 8px;
+            padding: 4px 6px;
+            font-size: 0.7rem;
+            color: white;
+            font-weight: 800;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            line-height: 1.1;
+            z-index: 10;
+        }
+
+        .activity-block:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .tab-active {
+            color: #2563eb;
+            border-bottom: 3px solid #2563eb;
+        }
+
+        /* オーバーレイ表示 */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* AIインサイト */
+        .insight-box {
+            background-color: white;
+            border: 2px solid #eff6ff;
+            border-radius: 2rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.625;
+            color: #475569;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+            background-image: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+        }
+
+        .insight-box::before {
+            content: '✨ AI Insight';
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #2563eb;
+            color: white;
+            padding: 0.25rem 1rem;
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom-right-radius: 1rem;
+        }
+
+        .chart-container {
+            position: relative;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+        }
+
+        /* 週別グリッド修正 */
+        .week-grid-container {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            width: 100%;
+            min-width: 700px;
+        }
+
+        .week-col {
+            border-right: 1px solid #f1f5f9;
+            position: relative;
+            width: 100%;
+        }
+
+        .week-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid #f1f5f9;
+            background-color: rgba(248, 250, 252, 0.3);
+            height: var(--header-height);
+        }
+
+        .day-cell {
+            background-color: white;
+            border: 1px solid #f8fafc;
+            border-radius: 1.5rem;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 100px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .day-cell:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: #dbeafe;
+            transform: scale(1.02);
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- ローディング表示 -->
+    <div id="loading-overlay">
+        <div class="flex flex-col items-center justify-center p-10 text-center">
+            <div id="loading-icon-wrapper"><i class="fas fa-circle-notch fa-spin text-blue-600 text-6xl mb-6"></i></div>
+            <span id="loading-status"
+                class="text-base font-black text-slate-700 uppercase tracking-widest">処理中...</span>
+        </div>
+    </div>
+
+    <!-- ヘッダー -->
+    <header class="bg-white border-b px-4 py-3 flex justify-between items-center z-30 shadow-sm">
+        <div class="flex items-center gap-2">
+            <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><i
+                    class="fas fa-fingerprint text-lg"></i></div>
+            <h1 class="text-xl font-black hidden sm:block tracking-tight text-slate-800">LifeLog</h1>
+        </div>
+        <nav id="nav-tabs" class="flex gap-1 sm:gap-2 text-sm font-bold overflow-x-auto no-scrollbar">
+            <button data-view="day" class="nav-tab px-4 py-1.5 transition-all">日別</button>
+            <button data-view="week" class="nav-tab px-4 py-1.5 text-slate-400 transition-all">週別</button>
+            <button data-view="month" class="nav-tab px-4 py-1.5 text-slate-400 transition-all">月別</button>
+            <button data-view="category" class="nav-tab px-4 py-1.5 text-slate-400 transition-all">カテゴリ</button>
+        </nav>
+    </header>
+
+    <main id="view-container" class="flex-1 overflow-y-auto bg-slate-50 p-4 pb-44">
+
+        <!-- 日別ビュー -->
+        <section id="view-day" class="view-section hidden max-w-xl mx-auto">
+            <div class="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 mb-8 text-center">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-3">
+                        <button onclick="app.moveDate(-1)"
+                            class="w-10 h-10 rounded-full border bg-slate-50 active:scale-90 flex items-center justify-center shadow-sm hover:bg-white transition-all"><i
+                                class="fas fa-chevron-left text-xs text-slate-400"></i></button>
+                        <h2 class="text-xl font-black date-label min-w-[150px]">---</h2>
+                        <button onclick="app.moveDate(1)"
+                            class="w-10 h-10 rounded-full border bg-slate-50 active:scale-90 flex items-center justify-center shadow-sm hover:bg-white transition-all"><i
+                                class="fas fa-chevron-right text-xs text-slate-400"></i></button>
+                    </div>
+                    <button onclick="ui.openEditModal()"
+                        class="w-10 h-10 bg-blue-600 text-white rounded-full shadow-lg active:scale-90 flex items-center justify-center transition-all hover:bg-blue-700"><i
+                            class="fas fa-plus text-sm"></i></button>
+                </div>
+                <div class="chart-container"><canvas id="day-canvas"></canvas></div>
+                <button onclick="app.generateInsight('day')"
+                    class="mt-6 px-6 py-3 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black hover:bg-blue-100 transition-all uppercase tracking-widest">✨
+                    今日の振り返りを生成</button>
+                <div id="insight-day" class="insight-box hidden text-left"></div>
+            </div>
+            <div class="bg-white rounded-[2.5rem] shadow-sm border p-6 pl-16 text-left overflow-hidden">
+                <div id="day-timeline-content" class="timeline-wrapper" style="height: 1152px;"></div>
+            </div>
+        </section>
+
+        <!-- 週別ビュー -->
+        <section id="view-week" class="view-section hidden max-w-7xl mx-auto">
+            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 mb-8 text-center">
+                <div class="flex items-center justify-center gap-6 mb-6">
+                    <button onclick="app.moveDate(-7)"
+                        class="w-10 h-10 rounded-full border bg-slate-50 active:scale-90 flex items-center justify-center shadow-sm hover:bg-white transition-all"><i
+                            class="fas fa-chevron-left text-xs text-slate-400"></i></button>
+                    <h2 class="text-2xl font-black date-range-label text-slate-800">---</h2>
+                    <button onclick="app.moveDate(7)"
+                        class="w-10 h-10 rounded-full border bg-slate-50 active:scale-90 flex items-center justify-center shadow-sm hover:bg-white transition-all"><i
+                            class="fas fa-chevron-right text-xs text-slate-400"></i></button>
+                </div>
+                <div class="chart-container mb-4"><canvas id="week-canvas"></canvas></div>
+                <button onclick="app.generateInsight('week')"
+                    class="mt-4 px-6 py-3 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black hover:bg-indigo-100 transition-all uppercase tracking-widest">✨
+                    週間インサイトを分析</button>
+                <div id="insight-week" class="insight-box hidden max-w-2xl mx-auto text-left"></div>
+            </div>
+            <div class="bg-white rounded-[2.5rem] shadow-sm border p-6 overflow-x-auto no-scrollbar">
+                <div class="flex relative" style="padding-left: 3.5rem;">
+                    <!-- 時刻ラベル用のコンテナ -->
+                    <div id="week-hour-labels" class="absolute left-0 top-0 w-14 pointer-events-none"></div>
+                    <!-- 曜日列用のコンテナ -->
+                    <div id="week-timeline-grid" class="week-grid-container"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 月別ビュー -->
+        <section id="view-month" class="view-section hidden max-w-4xl mx-auto px-2">
+            <div
+                class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 mb-10 text-center max-w-3xl mx-auto">
+                <div class="flex justify-center items-center gap-6 mb-6">
+                    <button onclick="app.moveMonth(-1)"
+                        class="w-10 h-10 rounded-full border bg-slate-50 active:scale-90 flex items-center justify-center shadow-sm hover:bg-white transition-all"><i
+                            class="fas fa-chevron-left text-xs text-slate-400"></i></button>
+                    <h2 class="text-3xl font-black month-label text-slate-800">---</h2>
+                    <button onclick="app.moveMonth(1)"
+                        class="w-10 h-10 rounded-full border bg-slate-50 active:scale-90 flex items-center justify-center shadow-sm hover:bg-white transition-all"><i
+                            class="fas fa-chevron-right text-xs text-slate-400"></i></button>
+                </div>
+                <div class="chart-container"><canvas id="month-canvas"></canvas></div>
+                <button onclick="app.generateInsight('month')"
+                    class="mt-6 px-6 py-3 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black hover:bg-slate-200 transition-all uppercase tracking-widest">✨
+                    月間ライフバランス診断</button>
+                <div id="insight-month" class="insight-box hidden text-left"></div>
+            </div>
+            <div class="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden text-center">
+                <div class="grid grid-cols-7 bg-slate-50/50 border-b border-slate-100">
+                    <div class="py-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">月</div>
+                    <div class="py-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">火</div>
+                    <div class="py-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">水</div>
+                    <div class="py-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">木</div>
+                    <div class="py-2 text-[10px] font-black text-slate-400 uppercase tracking-tighter">金</div>
+                    <div class="py-2 text-[10px] font-black text-blue-500 uppercase tracking-tighter">土</div>
+                    <div class="py-2 text-[10px] font-black text-rose-500 uppercase tracking-tighter">日</div>
+                </div>
+                <div id="month-grid" class="grid grid-cols-7"></div>
+            </div>
+        </section>
+
+        <!-- カテゴリ管理 -->
+        <section id="view-category" class="view-section hidden max-w-xl mx-auto">
+            <div class="bg-white rounded-[2.5rem] shadow-sm border p-8">
+                <h2 class="text-2xl font-black mb-8 text-center text-slate-800">カテゴリ管理</h2>
+                <button onclick="ui.openCategoryModal()"
+                    class="w-full py-4 bg-blue-600 text-white rounded-2xl text-sm font-black shadow-lg mb-8 transition-all hover:bg-blue-700 active:scale-95">+
+                    新規追加</button>
+                <div id="category-list-full" class="space-y-4"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="ai-input-container"
+        class="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-2xl border-t z-40">
+        <div class="max-w-2xl mx-auto">
+            <div
+                class="flex items-center gap-2 bg-slate-100 rounded-[1.5rem] p-1.5 shadow-inner border border-white focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
+                <div
+                    class="w-9 h-9 rounded-[1rem] bg-blue-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
+                    <i class="fas fa-wand-magic-sparkles text-sm"></i></div>
+                <input type="text" id="ai-input" placeholder="例: 1時半から9時半まで睡眠" autocomplete="off"
+                    class="flex-1 min-w-0 bg-transparent border-none focus:outline-none text-base font-bold ml-1 text-slate-700">
+                <button id="btn-analysis" onclick="app.handleAIInput()"
+                    class="bg-slate-800 text-white px-4 py-2.5 rounded-[1.2rem] font-black text-xs hover:bg-slate-700 transition-all active:scale-95 whitespace-nowrap flex-shrink-0">解析登録</button>
+            </div>
+            <div id="footer-legend"
+                class="flex justify-center flex-wrap gap-x-3 gap-y-1 mt-3 px-2 no-scrollbar overflow-x-auto text-[9px] font-bold text-slate-400">
+            </div>
+        </div>
+    </footer>
+
+    <!-- 編集モーダル -->
+    <div id="edit-modal" class="modal-overlay">
+        <div
+            class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-5 transform transition-all scale-100 opacity-100">
+            <h3 class="font-black flex justify-between items-center text-slate-800">記録の編集<button
+                    onclick="ui.closeEditModal()" class="text-slate-400 p-1"><i
+                        class="fas fa-times text-lg"></i></button></h3>
+            <input type="hidden" id="edit-id">
+            <div class="space-y-4 text-left">
+                <div><label
+                        class="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1 tracking-widest">日付</label><input
+                        type="date" id="edit-date"
+                        class="w-full px-5 py-3 text-sm font-bold bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div><label
+                        class="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1 tracking-widest">内容</label><input
+                        type="text" id="edit-label"
+                        class="w-full px-5 py-3 font-bold text-sm bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label
+                            class="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1 tracking-widest">開始</label>
+                        <div class="flex gap-1"><select id="edit-start-h"
+                                class="flex-1 px-2 py-3 bg-slate-50 rounded-xl text-sm font-bold"></select><select
+                                id="edit-start-m"
+                                class="flex-1 px-2 py-3 bg-slate-50 rounded-xl text-sm font-bold"></select></div>
+                    </div>
+                    <div><label
+                            class="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1 tracking-widest">終了</label>
+                        <div class="flex gap-1"><select id="edit-end-h"
+                                class="flex-1 px-2 py-3 bg-slate-50 rounded-xl text-sm font-bold"></select><select
+                                id="edit-end-m"
+                                class="flex-1 px-2 py-3 bg-slate-50 rounded-xl text-sm font-bold"></select></div>
+                    </div>
+                </div>
+                <div id="edit-error-msg"
+                    class="hidden text-rose-500 text-[10px] font-black text-center bg-rose-50 py-2 rounded-xl border border-rose-100">
+                </div>
+                <div id="category-selector" class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1"></div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="app.deleteEntry()"
+                        class="flex-1 py-4 bg-rose-50 text-rose-600 rounded-[1.25rem] font-black text-xs hover:bg-rose-100 transition-colors">削除</button>
+                    <button onclick="app.saveEntry()"
+                        class="flex-[2] py-4 bg-blue-600 text-white rounded-[1.25rem] font-black text-xs shadow-xl active:scale-95 transition-transform">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- カテゴリ設定モーダル -->
+    <div id="cat-modal" class="modal-overlay">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden p-6 space-y-6 text-center">
+            <h3 class="font-black text-left text-slate-800">カテゴリ設定</h3>
+            <input type="hidden" id="cat-edit-id">
+            <input type="text" id="cat-edit-label"
+                class="w-full px-5 py-4 font-black text-sm bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 outline-none"
+                placeholder="名称">
+            <div class="flex justify-between items-center px-1"><span
+                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-slate-400">カラー</span><input
+                    type="color" id="cat-edit-color" class="w-14 h-10 bg-transparent border-none cursor-pointer"></div>
+            <div class="flex gap-3"><button onclick="ui.closeCategoryModal()"
+                    class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs transition-all">閉じる</button><button
+                    onclick="app.saveCategory()"
+                    class="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg transition-all active:scale-95">保存</button>
+            </div>
+            <div id="cat-delete-area" class="hidden text-center mt-2"><button onclick="app.deleteCategory()"
+                    class="text-rose-500 text-[10px] font-black hover:underline">削除する</button></div>
+        </div>
+    </div>
+
+    <script>
+        /** [UTILITIES] */
+        const HOUR_HEIGHT = 48;
+        const BOUNDARY_HOUR = 4;
+        const HEADER_HEIGHT = 80; // 曜日のヘッダー高さ
+        const escapeHtml = (s) => (s || "").toString().replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+
+        const Gas = {
+            call: (action, data = {}) => new Promise((resolve, reject) => {
+                if (typeof google === 'undefined') return resolve({ success: true, data: { entries: [], categories: [] } });
+                google.script.run.withSuccessHandler(res => res.success ? resolve(res) : reject(res.error))
+                    .withFailureHandler(err => reject(err.toString()))[action](data);
+            })
+        };
+
+        class TimeUtils {
+            static formatDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+            static toMin(t) {
+                if (!t) return 0;
+                const p = t.split(':').map(Number);
+                let diff = p[0] - BOUNDARY_HOUR;
+                return (diff < 0 ? diff + 24 : diff) * 60 + (p[1] || 0);
+            }
+            static getWeekMonday(date) {
+                const d = new Date(date);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                const mon = new Date(d.setDate(diff));
+                mon.setHours(0, 0, 0, 0);
+                return mon;
+            }
+            static createSafeDate(dateStr) { if (!dateStr) return new Date(); const p = dateStr.split('-'); return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]), 0, 0, 0, 0); }
+            static splitEntry(entry) {
+                const results = []; const [sH, sM] = entry.start.split(':').map(Number); let [eH, eM] = entry.end.split(':').map(Number);
+                let sTotal = sH * 60 + sM; let eTotal = eH * 60 + eM; if (eTotal <= sTotal) eTotal += 1440;
+                const bndMin = 240; // 4:00 AM
+                let dBase = this.createSafeDate(entry.date); const curDate = this.formatDate(dBase);
+                if (sTotal < bndMin) {
+                    if (eTotal <= bndMin) results.push({ ...entry, date: curDate });
+                    else {
+                        results.push({ ...entry, date: curDate, end: "04:00", id: entry.id + "_p1" });
+                        const dNext = new Date(dBase); dNext.setDate(dBase.getDate() + 1);
+                        results.push({ ...entry, date: this.formatDate(dNext), start: "04:00", id: entry.id + "_p2" });
+                    }
+                } else {
+                    if (eTotal > bndMin + 1440) {
+                        results.push({ ...entry, date: curDate, end: "04:00", id: entry.id + "_p1" });
+                        const dNext = new Date(dBase); dNext.setDate(dBase.getDate() + 1);
+                        results.push({ ...entry, date: this.formatDate(dNext), start: "04:00", id: entry.id + "_p2" });
+                    } else results.push({ ...entry, date: curDate });
+                }
+                return results;
+            }
+        }
+
+        /** [UI MANAGER] */
+        class UIManager {
+            constructor(app) { this.app = app; this.activeView = 'day'; this.selectedCatId = 'other'; this.charts = {}; this.init(); }
+            init() {
+                this._initTimeSelects();
+                document.querySelectorAll('.nav-tab').forEach(b => b.onclick = () => {
+                    this.activeView = b.dataset.view;
+                    document.querySelectorAll('.insight-box').forEach(box => box.classList.add('hidden'));
+                    this.renderAll();
+                });
+                const aiInput = document.getElementById('ai-input');
+                if (aiInput) aiInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); app.handleAIInput(); } });
+                ['edit-start-h', 'edit-start-m', 'edit-end-h', 'edit-end-m'].forEach(id => { const el = document.getElementById(id); if (el) el.onchange = () => this.validateTimes(); });
+            }
+            _initTimeSelects() {
+                const h = Array.from({ length: 24 }, (_, i) => `<option value="${String(i).padStart(2, '0')}">${String(i).padStart(2, '0')}時</option>`).join('');
+                const m = Array.from({ length: 12 }, (_, i) => `<option value="${String(i * 5).padStart(2, '0')}">${String(i * 5).padStart(2, '0')}分</option>`).join('');
+                ['start', 'end'].forEach(p => { document.getElementById(`edit-${p}-h`).innerHTML = h; document.getElementById(`edit-${p}-m`).innerHTML = m; });
+            }
+            toggleLoading(s, msg = "同期中...", isError = false) {
+                const el = document.getElementById('loading-overlay'); const st = document.getElementById('loading-status'); const ic = document.getElementById('loading-icon-wrapper');
+                if (el) el.style.display = s ? 'flex' : 'none';
+                if (st) { st.innerText = msg; st.classList.toggle('text-rose-500', isError); }
+                if (ic) ic.style.display = isError ? 'none' : 'block';
+            }
+            validateTimes() {
+                const s = Number(document.getElementById('edit-start-h').value) * 60 + Number(document.getElementById('edit-start-m').value);
+                const e = Number(document.getElementById('edit-end-h').value) * 60 + Number(document.getElementById('edit-end-m').value);
+                const box = document.getElementById('edit-error-msg');
+                const ok = e > s; if (box) { box.innerText = ok ? "" : "⚠️ 終了時刻は開始より後の時間にしてください"; box.classList.toggle('hidden', ok); }
+                return ok;
+            }
+            renderAll() {
+                const d = this.app.currentDate;
+                document.querySelectorAll('.date-label').forEach(el => el.innerText = d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' }));
+                document.querySelectorAll('.nav-tab').forEach(b => { const active = b.dataset.view === this.activeView; b.classList.toggle('tab-active', active); b.classList.toggle('text-slate-400', !active); });
+                document.querySelectorAll('.view-section').forEach(s => s.classList.toggle('hidden', s.id !== `view-${this.activeView}`));
+                document.getElementById('ai-input-container').style.display = (['day', 'week', 'month'].includes(this.activeView)) ? 'block' : 'none';
+                if (this[`_${this.activeView}Render`]) this[`_${this.activeView}Render`]();
+                this._renderFooterLegend();
+            }
+            _renderFooterLegend() {
+                document.getElementById('footer-legend').innerHTML = Object.values(this.app.categories).map(c => `<div class="flex items-center gap-1 whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full" style="background:${c.color}"></span> ${c.label}</div>`).join('');
+            }
+            _dayRender() {
+                const container = document.getElementById('day-timeline-content'); if (!container) return; container.innerHTML = '';
+                const ds = TimeUtils.formatDate(this.app.currentDate);
+                const entries = this.app.entries.filter(e => e && e.date === ds);
+                for (let i = 0; i < 24; i++) {
+                    const h = (i + BOUNDARY_HOUR) % 24; const top = i * HOUR_HEIGHT;
+                    container.insertAdjacentHTML('beforeend', `<div class="grid-line" style="top:${top}px"></div><div class="hour-label" style="top:${top}px">${String(h).padStart(2, '0')}:00</div>`);
+                }
+                entries.forEach(e => container.insertAdjacentHTML('beforeend', this._createBlockHTML(e, HOUR_HEIGHT)));
+                this.drawDonutChart('day', entries, 1440);
+            }
+            _weekRender() {
+                const mon = TimeUtils.getWeekMonday(this.app.currentDate);
+                const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+                document.querySelector('.date-range-label').innerText = `${mon.getMonth() + 1}/${mon.getDate()} - ${sun.getMonth() + 1}/${sun.getDate()}`;
+
+                const labels = document.getElementById('week-hour-labels'); const grid = document.getElementById('week-timeline-grid');
+                if (!labels || !grid) return; labels.innerHTML = ''; grid.innerHTML = '';
+
+                // [FIX] 時刻ラベルの開始位置をヘッダーの高さ（80px）に合わせる
+                for (let i = 0; i < 24; i++) {
+                    const h = (i + BOUNDARY_HOUR) % 24;
+                    const top = (i * HOUR_HEIGHT) + HEADER_HEIGHT;
+                    labels.insertAdjacentHTML('beforeend', `<div class="hour-label" style="top:${top}px; left:0; width:100%; transform:translateY(-50%)">${String(h).padStart(2, '0')}:00</div>`);
+                }
+
+                const weekEntries = []; let activeDays = 0; const wDays = ['月', '火', '水', '木', '金', '土', '日'];
+                for (let i = 0; i < 7; i++) {
+                    const cd = new Date(mon); cd.setDate(mon.getDate() + i); const cds = TimeUtils.formatDate(cd);
+                    const dayEntries = this.app.entries.filter(e => e && e.date === cds);
+                    if (dayEntries.length > 0) activeDays++; weekEntries.push(...dayEntries);
+
+                    const col = document.createElement('div'); col.className = 'week-col';
+                    col.innerHTML = `
+                        <div class="week-header">
+                            <span class="text-[10px] font-black text-slate-300 leading-tight">${cd.getMonth() + 1}/${cd.getDate()}</span>
+                            <span class="text-sm font-black ${i >= 5 ? (i === 5 ? 'text-blue-500' : 'text-rose-500') : 'text-slate-500'} leading-tight">${wDays[i]}</span>
+                        </div>
+                        <div class="week-timeline-body" style="background-image: linear-gradient(#e2e8f0 1px, transparent 1px); background-size: 100% ${HOUR_HEIGHT}px; position: relative; height: 1152px;"></div>
+                    `;
+                    grid.appendChild(col);
+                    const body = col.querySelector('.week-timeline-body');
+                    dayEntries.forEach(e => body.insertAdjacentHTML('beforeend', this._createBlockHTML(e, HOUR_HEIGHT, true)));
+                }
+                this.drawDonutChart('week', weekEntries, Math.max(1440, activeDays * 1440));
+            }
+            _monthRender() {
+                const y = this.app.currentDate.getFullYear(), m = this.app.currentDate.getMonth();
+                const grid = document.getElementById('month-grid'); if (!grid) return; grid.innerHTML = '';
+                const last = new Date(y, m + 1, 0).getDate(); const firstDay = new Date(y, m, 1).getDay();
+                document.querySelector('.month-label').innerText = `${y}年 ${m + 1}月`;
+                const padding = (firstDay === 0) ? 6 : firstDay - 1;
+                for (let p = 0; p < padding; p++) grid.insertAdjacentHTML('beforeend', `<div class="bg-slate-50/20 border border-slate-50 min-h-[90px]"></div>`);
+                const monthEntries = []; let activeDays = 0;
+                for (let i = 1; i <= last; i++) {
+                    const d = new Date(y, m, i); const dayEntries = this.app.entries.filter(e => e && e.date === TimeUtils.formatDate(d));
+                    if (dayEntries.length > 0) { activeDays++; monthEntries.push(...dayEntries); }
+                    const stats = dayEntries.reduce((a, e) => { const dur = TimeUtils.toMin(e.end === "04:00" ? "28:00" : e.end) - TimeUtils.toMin(e.start); a[e.cat] = (a[e.cat] || 0) + (dur <= 0 ? dur + 1440 : dur); return a; }, {});
+                    const cell = document.createElement('div'); cell.className = 'day-cell';
+                    cell.innerHTML = `<span class="text-[9px] font-black ${d.getDay() === 0 ? 'text-rose-400' : d.getDay() === 6 ? 'text-blue-400' : 'text-slate-300'} self-start mb-1">${i}</span><div class="flex-1 flex items-center justify-center">${this._createMiniSVG(stats)}</div>`;
+                    cell.onclick = () => { this.app.currentDate = d; this.activeView = 'day'; this.renderAll(); };
+                    grid.appendChild(cell);
+                }
+                this.drawDonutChart('month', monthEntries, Math.max(1440, activeDays * 1440));
+            }
+            _createBlockHTML(e, h, small = false) {
+                const s = TimeUtils.toMin(e.start), eMin = TimeUtils.toMin(e.end === "04:00" ? "28:00" : e.end);
+                let dur = eMin - s; if (dur <= 0) dur += 1440;
+                return `<div class="activity-block" style="top:${(s / 60) * h}px; height:${(dur / 60) * h}px; background-color:${(this.app.categories[e.cat] || { color: '#ccc' }).color}" onclick="ui.openEditModal('${e.id}')"><span class="truncate block w-full px-1 font-bold">${escapeHtml(e.label)}</span></div>`;
+            }
+            _createMiniSVG(stats) {
+                const size = 36, sw = 7, r = (size - sw) / 2, c = size / 2, circum = 2 * Math.PI * r;
+                let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="transform -rotate-90">`, off = 0;
+                Object.entries(stats).forEach(([id, v]) => {
+                    const s = (v / 1440) * circum;
+                    svg += `<circle cx="${c}" cy="${c}" r="${r}" fill="transparent" stroke="${this.app.categories[id]?.color || '#eee'}" stroke-width="${sw}" stroke-dasharray="${s} ${circum}" stroke-dashoffset="${-off}" />`;
+                    off += s;
+                });
+                return svg + `</svg>`;
+            }
+            drawDonutChart(view, entries, totalMins) {
+                const stats = entries.reduce((a, e) => { let dur = TimeUtils.toMin(e.end === "04:00" ? "28:00" : e.end) - TimeUtils.toMin(e.start); if (dur <= 0) dur += 1440; a[e.cat] = (a[e.cat] || 0) + dur; return a; }, {});
+                const canvas = document.getElementById(`${view}-canvas`); if (!canvas || !window.Chart) return;
+                if (this.charts[view]) this.charts[view].destroy();
+                const dataPoints = Object.entries(stats).map(([id, val]) => ({ label: this.app.categories[id]?.label || id, value: val, color: this.app.categories[id]?.color || '#ccc' }));
+                const used = Object.values(stats).reduce((s, v) => s + v, 0);
+                if (used < totalMins) dataPoints.push({ label: '空白', value: totalMins - used, color: '#f1f5f9' });
+                this.charts[view] = new Chart(canvas, {
+                    type: 'doughnut', data: { labels: dataPoints.map(d => d.label), datasets: [{ data: dataPoints.map(d => d.value), backgroundColor: dataPoints.map(d => d.color), borderWidth: 0 }] },
+                    options: { maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 10, weight: 'bold' } } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${Math.floor(ctx.raw / 60)}時${ctx.raw % 60}分 (${Math.round(ctx.raw / totalMins * 100)}%)` } } } }
+                });
+            }
+            _categoryRender() {
+                const container = document.getElementById('category-list-full'); container.innerHTML = '';
+                Object.entries(this.app.categories).forEach(([id, c]) => {
+                    const div = document.createElement('div'); div.className = 'flex items-center justify-between p-5 bg-white rounded-3xl border border-slate-100 shadow-sm mb-4 transition-all hover:shadow-md';
+                    div.innerHTML = `<div class="flex items-center gap-5"><div class="w-10 h-10 rounded-2xl shadow-sm" style="background:${c.color}"></div><span class="font-bold text-slate-700">${escapeHtml(c.label)}</span></div><button onclick="ui.openCategoryModal('${id}')" class="text-slate-300 hover:text-blue-600 transition-all"><i class="fas fa-edit"></i></button>`;
+                    container.appendChild(div);
+                });
+            }
+            openEditModal(id = null) {
+                const e = id ? this.app.entries.find(x => x && x.id === id) : { label: '', start: '10:00', end: '11:00', cat: 'other', date: TimeUtils.formatDate(this.app.currentDate) };
+                if (!e) return;
+                document.getElementById('edit-id').value = id || ''; document.getElementById('edit-label').value = e.label; document.getElementById('edit-date').value = e.date;
+                const [sh, sm] = e.start.split(':'), [eh, em] = e.end.split(':');
+                document.getElementById('edit-start-h').value = sh; document.getElementById('edit-start-m').value = String(Math.floor(Number(sm) / 5) * 5).padStart(2, '0');
+                document.getElementById('edit-end-h').value = eh; document.getElementById('edit-end-m').value = String(Math.floor(Number(em) / 5) * 5).padStart(2, '0');
+                this.selectedCatId = e.cat; this._renderCatSelector(); document.getElementById('edit-error-msg').classList.add('hidden');
+                document.getElementById('edit-modal').style.display = 'flex';
+            }
+            closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+            _renderCatSelector() {
+                document.getElementById('category-selector').innerHTML = Object.entries(this.app.categories).map(([id, c]) => `<button onclick="ui.selectedCatId='${id}';ui._renderCatSelector()" class="p-3 rounded-2xl border-2 transition-all ${this.selectedCatId === id ? 'bg-white border-blue-500 shadow-md ring-4 ring-blue-50' : 'bg-slate-50 border-transparent text-slate-400'}" style="${this.selectedCatId === id ? 'color:' + c.color : ''}"><span class="w-2.5 h-2.5 rounded-full inline-block mr-1" style="background:${c.color}"></span><span class="text-[11px] font-black">${escapeHtml(c.label)}</span></button>`).join('');
+            }
+            openCategoryModal(id = null) {
+                const c = id ? this.app.categories[id] : { label: '', color: '#2563eb' };
+                document.getElementById('cat-edit-id').value = id || ''; document.getElementById('cat-edit-label').value = c.label; document.getElementById('cat-edit-color').value = c.color;
+                document.getElementById('cat-delete-area').classList.toggle('hidden', !id || id === 'other');
+                document.getElementById('cat-modal').style.display = 'flex';
+            }
+            closeCategoryModal() { document.getElementById('cat-modal').style.display = 'none'; }
+        }
+
+        /** [LIFE LOG APP] */
+        class LifeLogApp {
+            constructor() { this.entries = []; this.categories = {}; this.currentDate = new Date(); }
+            async init() {
+                window.ui = new UIManager(this);
+                this.categories = { work: { id: 'work', label: '仕事', color: '#3b82f6' }, sleep: { id: 'sleep', label: '睡眠', color: '#8b5cf6' }, other: { id: 'other', label: 'その他', color: '#64748b' } };
+                ui.toggleLoading(true, "データ読み込み中...");
+                try {
+                    const res = await Gas.call('apiGetAllData');
+                    if (res?.success) {
+                        this.entries = res.data.entries || [];
+                        if (res.data.categories?.length) { this.categories = {}; res.data.categories.forEach(c => this.categories[c.id] = c); }
+                    }
+                } catch (e) { console.error(e); }
+                ui.toggleLoading(false); ui.renderAll();
+            }
+            moveDate(amt) { this.currentDate.setDate(this.currentDate.getDate() + amt); ui.renderAll(); }
+            moveMonth(amt) { this.currentDate.setMonth(this.currentDate.getMonth() + amt); ui.renderAll(); }
+            async saveEntry() {
+                if (!ui.validateTimes()) return; ui.toggleLoading(true, "保存中...");
+                try {
+                    const id = document.getElementById('edit-id').value; const baseId = id ? id.replace(/_p\d$/, '') : "id_" + Date.now();
+                    const entry = { id: baseId, label: document.getElementById('edit-label').value || '無題', start: `${document.getElementById('edit-start-h').value}:${document.getElementById('edit-start-m').value}`, end: `${document.getElementById('edit-end-h').value}:${document.getElementById('edit-end-m').value}`, cat: ui.selectedCatId, date: document.getElementById('edit-date').value };
+                    if (id) { await Gas.call('apiDeleteLog', id); this.entries = this.entries.filter(x => x && x.id !== id); }
+                    for (const s of TimeUtils.splitEntry(entry)) { const res = await Gas.call('apiUpsertLog', s); if (res.success) this.entries.push(s); }
+                    ui.closeEditModal(); ui.renderAll();
+                } catch (e) { console.error(e); } finally { ui.toggleLoading(false); }
+            }
+            async deleteEntry() { const id = document.getElementById('edit-id').value; if (id && (await Gas.call('apiDeleteLog', id)).success) { this.entries = this.entries.filter(e => e && e.id !== id); ui.closeEditModal(); ui.renderAll(); } }
+            async saveCategory() {
+                const d = { id: document.getElementById('cat-edit-id').value || "cat_" + Date.now(), label: document.getElementById('cat-edit-label').value || '未設定', color: document.getElementById('cat-edit-color').value };
+                ui.toggleLoading(true, "更新中...");
+                try { if ((await Gas.call('apiUpsertCategory', d)).success) { this.categories[d.id] = d; ui.closeCategoryModal(); ui.renderAll(); } } finally { ui.toggleLoading(false); }
+            }
+            async deleteCategory() {
+                const id = document.getElementById('cat-edit-id').value; if (id && id !== 'other' && confirm("削除しますか？")) {
+                    ui.toggleLoading(true, "削除中...");
+                    try { if ((await Gas.call('apiDeleteCategory', id)).success) { delete this.categories[id]; this.entries.forEach(e => { if (e && e.cat === id) e.cat = 'other'; }); ui.closeCategoryModal(); ui.renderAll(); } } finally { ui.toggleLoading(false); }
+                }
+            }
+            async handleAIInput() {
+                const input = document.getElementById('ai-input'), text = input.value.trim(); if (!text) return;
+                ui.toggleLoading(true, "AIが分析中...");
+                try {
+                    const ctx = Object.entries(this.categories).map(([id, c]) => `${id}:${c.label}`).join(',');
+                    const res = await Gas.call('apiProxyGemini', { userQuery: text, categoriesContext: ctx, dateStr: TimeUtils.formatDate(this.currentDate) });
+                    if (res?.success) {
+                        for (const item of (Array.isArray(res.data) ? res.data : [res.data])) {
+                            const entry = { ...item, id: "id_" + Date.now() + "_" + Math.floor(Math.random() * 1000), date: item.date || TimeUtils.formatDate(this.currentDate) };
+                            for (const s of TimeUtils.splitEntry(entry)) { await Gas.call('apiUpsertLog', s); this.entries.push(s); }
+                        }
+                        input.value = ''; input.placeholder = "登録完了！"; setTimeout(() => input.placeholder = "例: 1時半から9時半まで睡眠", 2000); ui.renderAll();
+                    } else alert(res.error);
+                } catch (e) { alert("AI解析に失敗しました"); } finally { ui.toggleLoading(false); }
+            }
+            async generateInsight(view) {
+                let filtered = [], periodName = "";
+                if (view === 'day') { filtered = this.entries.filter(e => e && e.date === TimeUtils.formatDate(this.currentDate)); periodName = "今日"; }
+                else if (view === 'week') {
+                    const mon = TimeUtils.getWeekMonday(this.currentDate), sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+                    filtered = this.entries.filter(e => { if (!e) return false; const d = new Date(e.date + "T00:00:00"); return d >= mon && d <= sun; }); periodName = "今週";
+                } else if (view === 'month') {
+                    const y = this.currentDate.getFullYear(), m = this.currentDate.getMonth();
+                    filtered = this.entries.filter(e => { if (!e) return false; const d = new Date(e.date + "T00:00:00"); return d.getFullYear() === y && d.getMonth() === m; }); periodName = "今月";
+                }
+                if (filtered.length === 0) return alert("分析するデータがありません");
+                ui.toggleLoading(true, "AI分析中...");
+                try {
+                    const res = await Gas.call('apiGenerateInsight', { logs: filtered, periodName: periodName });
+                    if (res.success) { const box = document.getElementById(`insight-${view}`); box.innerText = res.data; box.classList.remove('hidden'); box.scrollIntoView({ behavior: 'smooth' }); }
+                } catch (e) { console.error(e); } finally { ui.toggleLoading(false); }
+            }
+        }
+
+        const app = new LifeLogApp();
+        window.onload = () => app.init();
+    </script>
+</body>
+
+</html>
