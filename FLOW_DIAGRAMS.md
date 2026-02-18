@@ -12,29 +12,29 @@
 
 ```mermaid
 graph TD
-    Start[開始: WebアプリURL] --> Routing{doGet}
-    Routing --> Dashboard[ダッシュボード (index.html)]
+    Start["開始: WebアプリURL"] --> Routing{doGet}
+    Routing --> Dashboard["ダッシュボード (index.html)"]
     
-    subgraph Views [メインビュー]
+    subgraph Views ["メインビュー"]
         Dashboard -- タブ切替 --> DayView[日別ビュー]
         Dashboard -- タブ切替 --> WeekView[週別ビュー]
         Dashboard -- タブ切替 --> MonthView[月別ビュー]
         Dashboard -- タブ切替 --> CatView[カテゴリ管理]
     end
 
-    subgraph Actions [アクション]
-        DayView -- ログクリック/追加 --> EditModal[編集モーダル]
+    subgraph Actions ["アクション"]
+        DayView -- ログクリック/追加 --> EditModal["編集モーダル"]
         WeekView -- ログクリック --> EditModal
         MonthView -- 日付クリック --> DayView
-        CatView -- 追加/編集 --> CatModal[カテゴリ設定モーダル]
+        CatView -- 追加/編集 --> CatModal["カテゴリ設定モーダル"]
         
-        Dashboard -- 自然言語入力 --> AIAnalysis[AI解析・登録]
-        DayView -- 振り返りボタン --> Insight[AIインサイト生成]
+        Dashboard -- 自然言語入力 --> AIAnalysis["AI解析・登録"]
+        DayView -- 振り返りボタン --> Insight["AIインサイト生成"]
         WeekView -- インサイトボタン --> Insight
         MonthView -- 診断ボタン --> Insight
     end
 
-    EditModal -- 保存/削除 --> UpdateDB[データ更新]
+    EditModal -- 保存/削除 --> UpdateDB["データ更新"]
     CatModal -- 保存/削除 --> UpdateDB
     AIAnalysis -- 登録 --> UpdateDB
 ```
