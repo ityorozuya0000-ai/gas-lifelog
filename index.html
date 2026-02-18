@@ -13,7 +13,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
 
         :root {
-            --hour-height: 48px;
+            --hour-height: 30px;
             --header-height: 80px;
         }
 
@@ -248,7 +248,7 @@
                 <div id="insight-day" class="insight-box hidden text-left"></div>
             </div>
             <div class="bg-white rounded-[2.5rem] shadow-sm border p-6 pl-16 text-left overflow-hidden">
-                <div id="day-timeline-content" class="timeline-wrapper" style="height: 1152px;"></div>
+                <div id="day-timeline-content" class="timeline-wrapper" style="height: 720px;"></div>
             </div>
         </section>
 
@@ -332,7 +332,8 @@
                 class="flex items-center gap-2 bg-slate-100 rounded-[1.5rem] p-1.5 shadow-inner border border-white focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
                 <div
                     class="w-9 h-9 rounded-[1rem] bg-blue-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
-                    <i class="fas fa-wand-magic-sparkles text-sm"></i></div>
+                    <i class="fas fa-wand-magic-sparkles text-sm"></i>
+                </div>
                 <input type="text" id="ai-input" placeholder="例: 1時半から9時半まで睡眠" autocomplete="off"
                     class="flex-1 min-w-0 bg-transparent border-none focus:outline-none text-base font-bold ml-1 text-slate-700">
                 <button id="btn-analysis" onclick="app.handleAIInput()"
@@ -416,7 +417,7 @@
 
     <script>
         /** [UTILITIES] */
-        const HOUR_HEIGHT = 48;
+        const HOUR_HEIGHT = 30;
         const BOUNDARY_HOUR = 4;
         const HEADER_HEIGHT = 80; // 曜日のヘッダー高さ
         const escapeHtml = (s) => (s || "").toString().replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -551,7 +552,7 @@
                             <span class="text-[10px] font-black text-slate-300 leading-tight">${cd.getMonth() + 1}/${cd.getDate()}</span>
                             <span class="text-sm font-black ${i >= 5 ? (i === 5 ? 'text-blue-500' : 'text-rose-500') : 'text-slate-500'} leading-tight">${wDays[i]}</span>
                         </div>
-                        <div class="week-timeline-body" style="background-image: linear-gradient(#e2e8f0 1px, transparent 1px); background-size: 100% ${HOUR_HEIGHT}px; position: relative; height: 1152px;"></div>
+                        <div class="week-timeline-body" style="background-image: linear-gradient(#e2e8f0 1px, transparent 1px); background-size: 100% ${HOUR_HEIGHT}px; position: relative; height: ${HOUR_HEIGHT * 24}px;"></div>
                     `;
                     grid.appendChild(col);
                     const body = col.querySelector('.week-timeline-body');
