@@ -238,12 +238,12 @@
                                 class="fas fa-chevron-right text-xs text-slate-400"></i></button>
                     </div>
                 </div>
-            </div>
-            <div class="chart-container"><canvas id="day-canvas"></canvas></div>
-            <button onclick="app.generateInsight('day')"
-                class="mt-6 px-6 py-3 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black hover:bg-blue-100 transition-all uppercase tracking-widest">✨
-                今日の振り返りを生成</button>
-            <div id="insight-day" class="insight-box hidden text-left"></div>
+
+                <div class="chart-container"><canvas id="day-canvas"></canvas></div>
+                <button onclick="app.generateInsight('day')"
+                    class="mt-6 px-6 py-3 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black hover:bg-blue-100 transition-all uppercase tracking-widest">✨
+                    今日の振り返りを生成</button>
+                <div id="insight-day" class="insight-box hidden text-left"></div>
             </div>
             <div class="bg-white rounded-[2.5rem] shadow-sm border p-6 pl-16 text-left overflow-hidden relative">
                 <button onclick="ui.openEditModal()"
