@@ -237,17 +237,18 @@
                             class="w-10 h-10 rounded-full border bg-slate-50 active:scale-90 flex items-center justify-center shadow-sm hover:bg-white transition-all"><i
                                 class="fas fa-chevron-right text-xs text-slate-400"></i></button>
                     </div>
-                    <button onclick="ui.openEditModal()"
-                        class="w-10 h-10 bg-blue-600 text-white rounded-full shadow-lg active:scale-90 flex items-center justify-center transition-all hover:bg-blue-700"><i
-                            class="fas fa-plus text-sm"></i></button>
                 </div>
-                <div class="chart-container"><canvas id="day-canvas"></canvas></div>
-                <button onclick="app.generateInsight('day')"
-                    class="mt-6 px-6 py-3 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black hover:bg-blue-100 transition-all uppercase tracking-widest">✨
-                    今日の振り返りを生成</button>
-                <div id="insight-day" class="insight-box hidden text-left"></div>
             </div>
-            <div class="bg-white rounded-[2.5rem] shadow-sm border p-6 pl-16 text-left overflow-hidden">
+            <div class="chart-container"><canvas id="day-canvas"></canvas></div>
+            <button onclick="app.generateInsight('day')"
+                class="mt-6 px-6 py-3 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black hover:bg-blue-100 transition-all uppercase tracking-widest">✨
+                今日の振り返りを生成</button>
+            <div id="insight-day" class="insight-box hidden text-left"></div>
+            </div>
+            <div class="bg-white rounded-[2.5rem] shadow-sm border p-6 pl-16 text-left overflow-hidden relative">
+                <button onclick="ui.openEditModal()"
+                    class="absolute top-6 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-xl z-20 flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all"><i
+                        class="fas fa-plus text-xl"></i></button>
                 <div id="day-timeline-content" class="timeline-wrapper" style="height: 720px;"></div>
             </div>
         </section>
@@ -618,7 +619,7 @@
                 const e = id ? this.app.entries.find(x => x && x.id === id) : { label: '', start: '10:00', end: '11:00', cat: 'other', date: TimeUtils.formatDate(this.app.currentDate) };
                 if (!e) return;
                 document.getElementById('edit-id').value = id || ''; document.getElementById('edit-label').value = e.label;
-                
+
                 // [FIX] 4時以前の場合は、表示上の日付を翌日(カレンダー通りの日付)にする
                 let dStr = e.date;
                 const [sh, sm] = e.start.split(':').map(Number);
@@ -674,16 +675,16 @@
                     const sM = document.getElementById('edit-start-m').value;
                     const eH = document.getElementById('edit-end-h').value;
                     const eM = document.getElementById('edit-end-m').value;
-                    
+
                     // [FIX] 4時以前の場合は、保存する日付(論理日付)を前日に戻す
                     let dStr = document.getElementById('edit-date').value;
                     if (sH < BOUNDARY_HOUR) {
-                       const d = TimeUtils.createSafeDate(dStr);
-                       d.setDate(d.getDate() - 1);
-                       dStr = TimeUtils.formatDate(d);
+                        const d = TimeUtils.createSafeDate(dStr);
+                        d.setDate(d.getDate() - 1);
+                        dStr = TimeUtils.formatDate(d);
                     }
 
-                    const entry = { id: baseId, label: document.getElementById('edit-label').value || '無題', start: `${String(sH).padStart(2,'0')}:${sM}`, end: `${eH}:${eM}`, cat: ui.selectedCatId, date: dStr };
+                    const entry = { id: baseId, label: document.getElementById('edit-label').value || '無題', start: `${String(sH).padStart(2, '0')}:${sM}`, end: `${eH}:${eM}`, cat: ui.selectedCatId, date: dStr };
                     if (id) { await Gas.call('apiDeleteLog', id); this.entries = this.entries.filter(x => x && x.id !== id); }
                     for (const s of TimeUtils.splitEntry(entry)) { const res = await Gas.call('apiUpsertLog', s); if (res.success) this.entries.push(s); }
                     ui.closeEditModal(); ui.renderAll();
