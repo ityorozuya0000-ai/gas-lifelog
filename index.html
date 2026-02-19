@@ -617,9 +617,20 @@
             openEditModal(id = null) {
                 const e = id ? this.app.entries.find(x => x && x.id === id) : { label: '', start: '10:00', end: '11:00', cat: 'other', date: TimeUtils.formatDate(this.app.currentDate) };
                 if (!e) return;
-                document.getElementById('edit-id').value = id || ''; document.getElementById('edit-label').value = e.label; document.getElementById('edit-date').value = e.date;
-                const [sh, sm] = e.start.split(':'), [eh, em] = e.end.split(':');
-                document.getElementById('edit-start-h').value = sh; document.getElementById('edit-start-m').value = String(Math.floor(Number(sm) / 5) * 5).padStart(2, '0');
+                document.getElementById('edit-id').value = id || ''; document.getElementById('edit-label').value = e.label;
+                
+                // [FIX] 4時以前の場合は、表示上の日付を翌日(カレンダー通りの日付)にする
+                let dStr = e.date;
+                const [sh, sm] = e.start.split(':').map(Number);
+                if (sh < BOUNDARY_HOUR) {
+                    const d = TimeUtils.createSafeDate(e.date);
+                    d.setDate(d.getDate() + 1);
+                    dStr = TimeUtils.formatDate(d);
+                }
+                document.getElementById('edit-date').value = dStr;
+
+                const [eh, em] = e.end.split(':');
+                document.getElementById('edit-start-h').value = String(sh).padStart(2, '0'); document.getElementById('edit-start-m').value = String(Math.floor(Number(sm) / 5) * 5).padStart(2, '0');
                 document.getElementById('edit-end-h').value = eh; document.getElementById('edit-end-m').value = String(Math.floor(Number(em) / 5) * 5).padStart(2, '0');
                 this.selectedCatId = e.cat; this._renderCatSelector(); document.getElementById('edit-error-msg').classList.add('hidden');
                 document.getElementById('edit-modal').style.display = 'flex';
@@ -659,7 +670,20 @@
                 if (!ui.validateTimes()) return; ui.toggleLoading(true, "保存中...");
                 try {
                     const id = document.getElementById('edit-id').value; const baseId = id ? id.replace(/_p\d$/, '') : "id_" + Date.now();
-                    const entry = { id: baseId, label: document.getElementById('edit-label').value || '無題', start: `${document.getElementById('edit-start-h').value}:${document.getElementById('edit-start-m').value}`, end: `${document.getElementById('edit-end-h').value}:${document.getElementById('edit-end-m').value}`, cat: ui.selectedCatId, date: document.getElementById('edit-date').value };
+                    const sH = Number(document.getElementById('edit-start-h').value);
+                    const sM = document.getElementById('edit-start-m').value;
+                    const eH = document.getElementById('edit-end-h').value;
+                    const eM = document.getElementById('edit-end-m').value;
+                    
+                    // [FIX] 4時以前の場合は、保存する日付(論理日付)を前日に戻す
+                    let dStr = document.getElementById('edit-date').value;
+                    if (sH < BOUNDARY_HOUR) {
+                       const d = TimeUtils.createSafeDate(dStr);
+                       d.setDate(d.getDate() - 1);
+                       dStr = TimeUtils.formatDate(d);
+                    }
+
+                    const entry = { id: baseId, label: document.getElementById('edit-label').value || '無題', start: `${String(sH).padStart(2,'0')}:${sM}`, end: `${eH}:${eM}`, cat: ui.selectedCatId, date: dStr };
                     if (id) { await Gas.call('apiDeleteLog', id); this.entries = this.entries.filter(x => x && x.id !== id); }
                     for (const s of TimeUtils.splitEntry(entry)) { const res = await Gas.call('apiUpsertLog', s); if (res.success) this.entries.push(s); }
                     ui.closeEditModal(); ui.renderAll();
